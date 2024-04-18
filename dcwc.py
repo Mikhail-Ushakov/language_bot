@@ -1,4 +1,5 @@
 from config_reader import config
+from gandonsky import generate
 
 import asyncio
 import logging
@@ -10,21 +11,33 @@ from aiogram.filters.command import Command
 from aiogram.filters.callback_data import CallbackData
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from aiogram.types import BufferedInputFile
-from enum import Enum
-from gandonsky import generate
 
-# Включаем логирование, чтобы не пропустить важные сообщения
+
 logging.basicConfig(level=logging.INFO)
-# Объект бота
+
 bot = Bot(token=config.bot_token.get_secret_value())
-# Диспетчер
+
 dp = Dispatcher()
-# dp['my_way'] = 'myyyy'
 
 
 class PromptCallbackFactory(CallbackData, prefix=""):
-    # prompt: Enum[str]
     prompt: str
+
+
+
+def get_kb_for_image(text):
+    builder = InlineKeyboardBuilder()
+    builder.button(
+            text=f"Создать {text}",
+            callback_data=PromptCallbackFactory(prompt=text)
+        )
+    return builder.as_markup()
+
+
+
+
+
+
 
 
 
@@ -32,9 +45,7 @@ class PromptCallbackFactory(CallbackData, prefix=""):
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     await message.answer(f'Перевод текста с англ на рус')
-    # a += 1
-    # await message.answer_photo('https://w.forfun.com/fetch/03/03f8cd3f6796daaacc1fe43ffb7704b7.jpeg')
-
+   
 
 @dp.message(Command('test'))
 async def test(message: types.Message):
@@ -55,30 +66,24 @@ async def translate(message: types.Message):
     response = r.get(f'https://ftapi.pythonanywhere.com/translate?sl=en&dl=ru&text={text}')
     js = json.loads(response.text)
     answer = js['destination-text']
-    # print(js)
 
 
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text=f"Создать {text}",
-        # callback_data=f"create_{answer.replace(' ', '')}")  
-        # callback_data=PromptCallbackFactory(prompt=Enum('word', answer))
-        callback_data=PromptCallbackFactory(prompt=answer)
-        )
+
+    # builder = InlineKeyboardBuilder()
+    # builder.button(
+    #         text=f"Создать {text}",
+    #         callback_data=PromptCallbackFactory(prompt=answer)
+    #     )
     
     await message.answer(
         f"{answer}\n\nНажми на кнопку, чтобы сгенерировать изображение(максимум 34 символа =) )",
-        reply_markup=builder.as_markup()
+        reply_markup=get_kb_for_image(answer) if len(answer.encode()) <= 64 else None
     )
-    # await messege.answer(answer)
-
 
 
 
 @dp.callback_query(PromptCallbackFactory.filter())
 async def send_random_value(callback: types.CallbackQuery, callback_data: PromptCallbackFactory):
-    # prompt = callback.data.split('_')[1]
-    # prompt = ' '.join(callback_data.prompt)
     prompt = callback_data.prompt
     image = generate(prompt)
     await callback.message.answer_photo(
@@ -88,15 +93,12 @@ async def send_random_value(callback: types.CallbackQuery, callback_data: Prompt
             ),
             caption=f"Изображениe {prompt}"
         )
-    # await callback.message.answer('a')
     await callback.answer()
     
 
-
-# Запуск процесса поллинга новых апдейтов
 async def main():
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
-
 
 
 if __name__ == "__main__":

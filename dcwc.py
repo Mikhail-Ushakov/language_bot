@@ -94,6 +94,7 @@ async def translate(message: types.Message):
 
 
 
+
 @dp.callback_query(PromptCallbackFactory.filter())
 async def send_random_value(callback: types.CallbackQuery, callback_data: PromptCallbackFactory):
     prompt = callback_data.prompt

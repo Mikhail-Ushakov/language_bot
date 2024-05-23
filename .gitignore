@@ -1,5 +1,10 @@
 dump
 .vscode
-__pycache__
+**/__pycache__
 venv
+env
 .env
+test
+get-docker.sh
+test.txt
+test_enum.py

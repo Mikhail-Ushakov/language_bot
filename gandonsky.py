@@ -5,7 +5,7 @@ import base64
 from pydantic import Base64Bytes
 import requests
 from config_reader import config
-
+from celery_client.celery_app import app
 
 class Text2ImageAPI:
 
@@ -40,7 +40,7 @@ class Text2ImageAPI:
         data = response.json()
         return data['uuid']
 
-    def check_generation(self, request_id, attempts=10, delay=2):
+    def check_generation(self, request_id, attempts=10, delay=10):
         while attempts > 0:
             response = requests.get(self.URL + 'key/api/v1/text2image/status/' + request_id, headers=self.AUTH_HEADERS)
             data = response.json()
@@ -51,9 +51,10 @@ class Text2ImageAPI:
             time.sleep(delay)
 
 
+api = Text2ImageAPI('https://api-key.fusionbrain.ai/', config.kandinsky_api_key.get_secret_value(), config.kandinsky_secret_key.get_secret_value())
 
+@app.task
 def generate(prompt):
-    api = Text2ImageAPI('https://api-key.fusionbrain.ai/', config.kandinsky_api_key.get_secret_value(), config.kandinsky_secret_key.get_secret_value())
     model_id = api.get_model()
     uuid = api.get_data(prompt, model_id)
     images = api.check_generation(uuid)

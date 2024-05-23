@@ -36,7 +36,15 @@ def get_kb_for_image(text):
 
 
 
-
+@dp.message(Command('words'))
+async def get_list_words(message: types.Message):
+    user_id = message.from_user.id
+    print(user_id)
+    response = r.get('http://127.0.0.1:8000/api/', headers={'id': str(user_id)})
+    words = json.loads(response.text)
+    print(words)
+    res = f'{words}'
+    await message.answer(res)
 
 
 
@@ -59,6 +67,17 @@ async def test(message: types.Message):
     await message.answer(text='change action', reply_markup=builder.as_markup())
 
 
+@dp.message(Command('language'))
+async def test(message: types.Message):
+    # builder = ReplyKeyboardBuilder()
+    # builder.add(
+    #     types.KeyboardButton(
+    #         text='йоу', 
+    #         request_poll=types.KeyboardButtonPollType()
+    #     )
+    # )
+    await message.answer(text='change action')
+
 
 @dp.message(F.text)
 async def translate(message: types.Message):
@@ -67,25 +86,19 @@ async def translate(message: types.Message):
     js = json.loads(response.text)
     answer = js['destination-text']
 
-
-
-    # builder = InlineKeyboardBuilder()
-    # builder.button(
-    #         text=f"Создать {text}",
-    #         callback_data=PromptCallbackFactory(prompt=answer)
-    #     )
-    
-    await message.answer(
-        f"{answer}\n\nНажми на кнопку, чтобы сгенерировать изображение(максимум 34 символа =) )",
-        reply_markup=get_kb_for_image(answer) if len(answer.encode()) <= 64 else None
-    )
+    await message.answer(answer.capitalize())
+    # await message.answer(
+    #     f"{answer.capitalize()}\n\nНажми на кнопку, чтобы сгенерировать изображение(максимум 34 символа =) )",
+    #     reply_markup=get_kb_for_image(answer) if len(answer.encode()) <= 64 else None
+    # )
 
 
 
 @dp.callback_query(PromptCallbackFactory.filter())
 async def send_random_value(callback: types.CallbackQuery, callback_data: PromptCallbackFactory):
     prompt = callback_data.prompt
-    image = generate(prompt)
+    print(prompt)
+    image = generate.delay((prompt))
     await callback.message.answer_photo(
             BufferedInputFile(
                 base64.b64decode(image),
@@ -93,6 +106,7 @@ async def send_random_value(callback: types.CallbackQuery, callback_data: Prompt
             ),
             caption=f"Изображениe {prompt}"
         )
+    await callback.message.answer('Идет загрузка фото')
     await callback.answer()
     
 

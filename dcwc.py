@@ -1,11 +1,13 @@
 from config_reader import config
 from gandonsky import generate
 
+import emoji
 import asyncio
 import logging
 import json
 import base64
 import requests as r
+
 from aiogram import F, Bot, Dispatcher, types, html
 from aiogram.filters.command import Command
 from aiogram.filters.callback_data import CallbackData
@@ -20,16 +22,26 @@ bot = Bot(token=config.bot_token.get_secret_value())
 dp = Dispatcher()
 
 
-class PromptCallbackFactory(CallbackData, prefix=""):
-    prompt: str
+# class PromptCallbackFactory(CallbackData, prefix=""):
+#     prompt: str
 
 
 
-def get_kb_for_image(text):
+# def get_kb_for_image(text):
+#     builder = InlineKeyboardBuilder()
+#     builder.button(
+#             text=f"Создать {text}",
+#             callback_data=PromptCallbackFactory(prompt=text)
+#         )
+#     return builder.as_markup()
+
+
+
+def get_kb_for_add_favorite(text):
     builder = InlineKeyboardBuilder()
     builder.button(
-            text=f"Создать {text}",
-            callback_data=PromptCallbackFactory(prompt=text)
+            text=f"Добавить в избранное" + emoji.emojize(':star:'),
+            callback_data=f'favorite_{text}'
         )
     return builder.as_markup()
 
@@ -55,16 +67,16 @@ async def cmd_start(message: types.Message):
     await message.answer(f'Перевод текста с англ на рус')
    
 
-@dp.message(Command('test'))
-async def test(message: types.Message):
-    builder = ReplyKeyboardBuilder()
-    builder.add(
-        types.KeyboardButton(
-            text='йоу', 
-            request_poll=types.KeyboardButtonPollType()
-        )
-    )
-    await message.answer(text='change action', reply_markup=builder.as_markup())
+# @dp.message(Command('test'))
+# async def test(message: types.Message):
+#     builder = ReplyKeyboardBuilder()
+#     builder.add(
+#         types.KeyboardButton(
+#             text='йоу', 
+#             request_poll=types.KeyboardButtonPollType()
+#         )
+#     )
+#     await message.answer(text='change action', reply_markup=builder.as_markup())
 
 
 @dp.message(Command('language'))
@@ -86,7 +98,10 @@ async def translate(message: types.Message):
     js = json.loads(response.text)
     answer = js['destination-text']
 
-    await message.answer(answer.capitalize())
+    await message.answer(
+            answer.capitalize(),
+            reply_markup=get_kb_for_add_favorite(answer)
+        )
     # await message.answer(
     #     f"{answer.capitalize()}\n\nНажми на кнопку, чтобы сгенерировать изображение(максимум 34 символа =) )",
     #     reply_markup=get_kb_for_image(answer) if len(answer.encode()) <= 64 else None
@@ -95,21 +110,27 @@ async def translate(message: types.Message):
 
 
 
-@dp.callback_query(PromptCallbackFactory.filter())
-async def send_random_value(callback: types.CallbackQuery, callback_data: PromptCallbackFactory):
-    prompt = callback_data.prompt
-    print(prompt)
-    image = generate.delay((prompt))
-    await callback.message.answer_photo(
-            BufferedInputFile(
-                base64.b64decode(image),
-                filename=f"{prompt}.jpg"
-            ),
-            caption=f"Изображениe {prompt}"
-        )
-    await callback.message.answer('Идет загрузка фото')
-    await callback.answer()
+# @dp.callback_query(PromptCallbackFactory.filter())
+# async def send_random_value(callback: types.CallbackQuery, callback_data: PromptCallbackFactory):
+#     prompt = callback_data.prompt
+#     print(prompt)
+#     image = generate.delay((prompt))
+#     await callback.message.answer_photo(
+#             BufferedInputFile(
+#                 base64.b64decode(image),
+#                 filename=f"{prompt}.jpg"
+#             ),
+#             caption=f"Изображениe {prompt}"
+#         )
+#     await callback.message.answer('Идет загрузка фото')
+#     await callback.answer()
     
+@dp.callback_query(F.data.startswith('favorite_'))
+async def send_random_value(callback: types.CallbackQuery):
+    text = callback.data.split('_')[1]
+    response = r.get('http://127.0.0.1:8000/api/', headers={'id': str(user_id)})
+
+
 
 async def main():
     await bot.delete_webhook(drop_pending_updates=True)
